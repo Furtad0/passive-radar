@@ -1,0 +1,38 @@
+#ignore compiled GRC flowgraphs
+GRC/flowgraphs/*.py
+
+#ignore saved data
+GRC/samples
+
+
+
+# C++ files
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
