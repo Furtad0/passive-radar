@@ -4,8 +4,9 @@ GRC/flowgraphs/*.py
 #ignore saved data
 GRC/samples
 
-#ignore documentation
+#ignore documentation and build
 GRC/modules/*/docs
+GRC/modules/*/build
 
 #ignore CMake stuff
 CMakeCache.txt
