@@ -202,7 +202,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/media/ubuntu/casper-rw/GRC/samples/wav_out_1049mhz.wav</value>
+      <value>/media/ubuntu/casper-rw/passive-radar/GRC/samples/wav_out_1049mhz.wav</value>
     </param>
     <param>
       <key>_coordinate</key>

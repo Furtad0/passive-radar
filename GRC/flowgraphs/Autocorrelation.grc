@@ -246,11 +246,11 @@
     </param>
     <param>
       <key>len</key>
-      <value>73</value>
+      <value>int(length/2)</value>
     </param>
     <param>
       <key>peak</key>
-      <value>173</value>
+      <value>height</value>
     </param>
     <param>
       <key>id</key>
@@ -263,6 +263,92 @@
     <param>
       <key>minoutbuf</key>
       <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>parameter</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(440, 59)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>height</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>Peak Height</value>
+    </param>
+    <param>
+      <key>short_id</key>
+      <value>p</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>intx</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>10</value>
+    </param>
+  </block>
+  <block>
+    <key>parameter</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(288, 59)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>length</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>Length</value>
+    </param>
+    <param>
+      <key>short_id</key>
+      <value>l</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>intx</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>10</value>
     </param>
   </block>
   <block>
