@@ -11,10 +11,23 @@
        * key (makes the value accessible as $keyname, e.g. in the make node)
        * type -->
   <param>
-    <name>...</name>
-    <key>...</key>
-    <type>...</type>
+    <name>Minimum Lag</name>
+    <key>min_lag</key>
+    <type>int</type>
   </param>
+
+  <param>
+    <name>Maximum Lag</name>
+    <key>max_lag</key>
+    <type>int</type>
+  </param>
+
+  <param>
+    <name>Minimum Samples</name>
+    <key>min_samp</key>
+    <type>int</type>
+  </param>
+
 
   <!-- Make one 'sink' node per input. Sub-nodes:
        * name (an identifier for the GUI)
@@ -22,8 +35,18 @@
        * vlen
        * optional (set to 1 for optional inputs) -->
   <sink>
-    <name>in</name>
-    <type><!-- e.g. int, float, complex, byte, short, xxx_vector, ...--></type>
+    <name>x_lead</name>
+    <type>complex</type>
+  </sink>
+
+  <sink>
+    <name>x_lag</name>
+    <type>complex</type>
+  </sink>
+
+  <sink>
+    <name>tau</name>
+    <type>int</type>
   </sink>
 
   <!-- Make one 'source' node per output. Sub-nodes:
@@ -33,6 +56,6 @@
        * optional (set to 1 for optional inputs) -->
   <source>
     <name>out</name>
-    <type><!-- e.g. int, float, complex, byte, short, xxx_vector, ...--></type>
+    <type>complex</type>
   </source>
 </block>

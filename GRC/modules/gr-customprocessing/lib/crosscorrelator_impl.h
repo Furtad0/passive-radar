@@ -22,6 +22,7 @@
 #define INCLUDED_CUSTOMPROCESSING_CROSSCORRELATOR_IMPL_H
 
 #include <customprocessing/crosscorrelator.h>
+#include <complex>
 
 namespace gr {
   namespace customprocessing {
@@ -29,10 +30,20 @@ namespace gr {
     class crosscorrelator_impl : public crosscorrelator
     {
      private:
-      // Nothing to declare in this block.
+      int minl; //minimum lag time
+      int maxl; //maximum lag time (these two bound tau, the correlation argument)
+      int mins; //minimum number of samples to be compared in producing a correlation float
+      std::complex<float>* old_lag;
+      std::complex<float>* old_lead;
+      int prev_lag; //pointers to keep your place in the 'circular buffer'
+      int prev_lead;
+      int lag_size; //keep track of sizes
+      int lead_size;
+      float atten; //an attenuating factor
+   
 
      public:
-      crosscorrelator_impl(int min_lag, int max_lag, int min_samp);
+      crosscorrelator_impl(int min_lag, int max_lag, int min_samp, std::vector<int> sizes);
       ~crosscorrelator_impl();
 
       // Where all the action really happens
