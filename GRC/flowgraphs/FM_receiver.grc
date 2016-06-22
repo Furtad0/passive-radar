@@ -276,7 +276,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/media/ubuntu/casper-rw/passive-radar/GRC/samples/062116/90mhz_16MS_sun.dat</value>
+      <value>/media/ubuntu/casper-rw/passive-radar/GRC/applications/take_samples/usrp_samples.dat</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -304,7 +304,7 @@
     </param>
     <param>
       <key>repeat</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
       <key>vlen</key>
@@ -453,7 +453,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>104.9e6</value>
+      <value>90.1e6</value>
     </param>
   </block>
   <block>
@@ -630,7 +630,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>16e6</value>
+      <value>1e6</value>
     </param>
   </block>
   <block>
