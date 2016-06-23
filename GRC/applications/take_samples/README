@@ -1,12 +1,10 @@
-Building UHD Applications using CMake
-=====================================
+take_samples.cpp compiles into an executable that steps from the start 
+frequency to the end frequency in increments of the step frequency. 
+Use --help for more detailed information. 
+Notably, the --file flag should be used to set the file location as well
+as base name.
 
-This directory contains a tiny example of a UHD-based application.
-Unlike the other examples, it is completely independent of the UHD
-source tree and can be compiled from any path as long as UHD is
-currently installed on the current machine.
-
-To try it out, run these commands:
+To build, run these commands:
 $ mkdir build/ # Creates a new build directory
 $ cd build/
 $ cmake ..

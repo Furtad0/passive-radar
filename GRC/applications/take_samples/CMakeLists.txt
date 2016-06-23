@@ -53,7 +53,7 @@ include_directories(
 link_directories(${Boost_LIBRARY_DIRS})
 
 ### Make the executable #######################################################
-add_executable(cage_samples cage_samples.cpp)
+add_executable(take_samples take_samples.cpp)
 
 SET(CMAKE_BUILD_TYPE "Release")
 MESSAGE(STATUS "******************************************************************************")
@@ -67,12 +67,12 @@ MESSAGE(STATUS "****************************************************************
 # anything else we need (in this case, some Boost libraries):
 if(NOT UHD_USE_STATIC_LIBS)
     message(STATUS "Linking against shared UHD library.")
-    target_link_libraries(cage_samples ${UHD_LIBRARIES} ${Boost_LIBRARIES})
+    target_link_libraries(take_samples ${UHD_LIBRARIES} ${Boost_LIBRARIES})
 # Shared library case: All we need to do is link against the library, and
 # anything else we need (in this case, some Boost libraries):
 else(NOT UHD_USE_STATIC_LIBS)
     message(STATUS "Linking against static UHD library.")
-    target_link_libraries(cage_samples
+    target_link_libraries(take_samples
         # We could use ${UHD_LIBRARIES}, but linking requires some extra flags,
         # so we use this convenience variable provided to us
         ${UHD_STATIC_LIB_LINK_FLAG}
