@@ -34,10 +34,8 @@ namespace po = boost::program_options;
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
-template<typename samp_type> void recv_to_file(
-    uhd::usrp::multi_usrp::sptr usrp,
-    const std::string &cpu_format,
-    const std::string &wire_format,
+template<typename samp_type> void record(
+    uhd::rx_streamer::sptr rx_stream,
     const std::string &file,
     size_t samps_per_buff,
     unsigned long long num_requested_samples,
@@ -48,18 +46,18 @@ template<typename samp_type> void recv_to_file(
     bool enable_size_map = false,
     bool continue_on_bad_packet = false
 ){
-    unsigned long long num_total_samps = 0;
-    //create a receive streamer
-    uhd::stream_args_t stream_args(cpu_format,wire_format);
-    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     uhd::rx_metadata_t md;
     std::vector<samp_type> buff(samps_per_buff);
     std::ofstream outfile;
+
     if (not null)
         outfile.open(file.c_str(), std::ofstream::binary);
     bool overflow_message = true;
 
+    std::cout << "Opened file" << std::endl;
+
+    
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
         uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
@@ -70,14 +68,22 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.time_spec = uhd::time_spec_t();
     rx_stream->issue_stream_cmd(stream_cmd);
 
+    unsigned long long num_total_samps = 0;
+
+    std::cout << "Set up streaming" << std::endl;
+
     boost::system_time start = boost::get_system_time();
     unsigned long long ticks_requested = (long)(time_requested * (double)boost::posix_time::time_duration::ticks_per_second());
     boost::posix_time::time_duration ticks_diff;
     boost::system_time last_update = start;
     unsigned long long last_update_samps = 0;
 
+    std::cout << "Set up timer" << std::endl;
+
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
+
+    std::cout << "About to start" << std::endl;
 
     while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)) {
         boost::system_time now = boost::get_system_time();
@@ -93,11 +99,10 @@ template<typename samp_type> void recv_to_file(
                 overflow_message = false;
                 std::cerr << boost::format(
                     "Got an overflow indication. Please consider the following:\n"
-                    "  Your write medium must sustain a rate of %fMB/s.\n"
                     "  Dropped samples will not be written to the file.\n"
                     "  Please modify this example for your purposes.\n"
                     "  This message will not appear again.\n"
-                ) % (usrp->get_rx_rate()*sizeof(samp_type)/1e6);
+                );
             }
             continue;
         }
@@ -142,11 +147,15 @@ template<typename samp_type> void recv_to_file(
         }
     }
 
+    std::cout << "Done streaming" << std::endl;
+
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
     if (outfile.is_open())
         outfile.close();
+
+    std::cout << "Closing" << std::endl;
 
     if (stats) {
         std::cout << std::endl;
@@ -163,6 +172,27 @@ template<typename samp_type> void recv_to_file(
                 std::cout << it->first << ":\t" << it->second << std::endl;
         }
     }
+}
+
+template<typename samp_type> void recv_to_file(
+    uhd::usrp::multi_usrp::sptr usrp,
+    const std::string &cpu_format,
+    const std::string &wire_format,
+    const std::string &file,
+    size_t samps_per_buff,
+    unsigned long long num_requested_samples,
+    double time_requested = 0.0,
+    bool bw_summary = false,
+    bool stats = false,
+    bool null = false,
+    bool enable_size_map = false,
+    bool continue_on_bad_packet = false
+){
+
+    std::cout << "Entered recv_to_file" << std::endl;
+
+
+    
 }
 
 typedef boost::function<uhd::sensor_value_t (const std::string&)> get_sensor_fn_t;
@@ -316,10 +346,33 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     freq = start*1e6;
     double rate_ms = usrp->get_rx_rate()/1e6;
 
+    
+        
+    //format
+    std::string format;
+    if (type == "double") format = "fc64";
+    else if (type == "float") format = "fc32";
+    else if (type == "short") format = "sc16";
+    else throw std::runtime_error("Unknown type " + type);
+
+    //create a receive streamer
+    uhd::stream_args_t stream_args(format,wirefmt);
+    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
+
+    std::cout << "Created streamer" << std::endl;
+
+    //record<samp_type>(rx_stream, file, samps_per_buff, num_requested_samples, time_requested, bw_summary, stats, null, enable_size_map, continue_on_bad_packet);
+    
+    //argument macros
+    #define recv_to_file_args(format, file) \
+            (usrp, format, wirefmt, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet)
+    #define record_args(file) \
+            (rx_stream, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet)
+
     //for every requested frequency
     while (freq <= end*1e6) {
         //set variables
-        filename = filebase + "_" + boost::lexical_cast<std::string>(freq/1e6) + "_" + boost::lexical_cast<std::string>(rate_ms) + "MS.dat";
+        filename = filebase + "_" + boost::lexical_cast<std::string>(freq/1e6) + "mhz_" + boost::lexical_cast<std::string>(rate_ms) + "MS.dat";
 
 
         //set the current frequency
@@ -331,7 +384,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         boost::this_thread::sleep(boost::posix_time::seconds(setup_time)); //allow for some setup time
 
-
+        std::cout << "Setup time passed" << std::endl;
 
         //check Ref and LO Lock detect
         if (not vm.count("skip-lo")){
@@ -342,20 +395,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 check_locked_sensor(usrp->get_mboard_sensor_names(0), "ref_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, 0), setup_time);
         }
 
+        std::cout << "Done checking Ref and LO Lock detect" << std::endl;
+
         if (total_num_samps == 0){
             std::signal(SIGINT, &sig_int_handler);
+            std::cout << "Signalled SIGINT" << std::endl;
         }
 
-        #define recv_to_file_args(format) \
-            (usrp, format, wirefmt, filename, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet)
-    
-        //recv to file
-        if (type == "double") recv_to_file<std::complex<double> >recv_to_file_args("fc64");
-        else if (type == "float") recv_to_file<std::complex<float> >recv_to_file_args("fc32");
-        else if (type == "short") recv_to_file<std::complex<short> >recv_to_file_args("sc16");
+        //record for this frequency
+        if (type == "double") record<std::complex<double> >record_args(filename);
+        else if (type == "float") record<std::complex<float> >record_args(filename);
+        else if (type == "short") record<std::complex<short> >record_args(filename);
         else throw std::runtime_error("Unknown type " + type);
-
-
 
         //print progress
         std::cout << filename << std::endl;
