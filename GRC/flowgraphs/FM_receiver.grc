@@ -276,7 +276,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/media/ubuntu/casper-rw/passive-radar/GRC/samples/062316/90.1mhz_1MS.dat</value>
+      <value>/home/ubuntu/Downloads/70.dat</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -411,6 +411,49 @@
     <param>
       <key>samp_rate</key>
       <value>int(audio_rate)</value>
+    </param>
+  </block>
+  <block>
+    <key>parameter</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(560, 43)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>filename</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>name</value>
+    </param>
+    <param>
+      <key>short_id</key>
+      <value>n</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>string</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>"0.dat"</value>
     </param>
   </block>
   <block>
