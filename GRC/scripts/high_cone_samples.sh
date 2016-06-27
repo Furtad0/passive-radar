@@ -22,12 +22,12 @@ if [ "$NAME" == "NA" ]; then
     exit 0
 fi
 
-GAIN=${GAIN:-30}
+GAIN=${GAIN:-0}
 
 mkdir ../samples/$NAME
 
 # cage elements
-FREQMHZ=950     # starting
+FREQMHZ=948     # starting
 FREQMHZMAX=1500 # ending
 FREQMHZSTEP=4   # step
 

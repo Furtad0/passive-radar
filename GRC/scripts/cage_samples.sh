@@ -22,7 +22,7 @@ if [ "$NAME" == "NA" ]; then
     exit 0
 fi
 
-GAIN=${GAIN:-30}
+GAIN=${GAIN:-0}
 
 mkdir ../samples/$NAME
 
