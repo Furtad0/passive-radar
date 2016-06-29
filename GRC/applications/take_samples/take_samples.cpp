@@ -53,9 +53,9 @@ template<typename samp_type> void record(
 
     if (not null)
         outfile.open(file.c_str(), std::ofstream::binary);
-    bool overflow_message = true;
+    bool overflow_message = false;//true;
 
-    std::cout << "Opened file" << std::endl;
+    //std::cout << "Opened file" << std::endl;
 
     
     //setup streaming
@@ -70,7 +70,7 @@ template<typename samp_type> void record(
 
     unsigned long long num_total_samps = 0;
 
-    std::cout << "Set up streaming" << std::endl;
+    //std::cout << "Set up streaming" << std::endl;
 
     boost::system_time start = boost::get_system_time();
     unsigned long long ticks_requested = (long)(time_requested * (double)boost::posix_time::time_duration::ticks_per_second());
@@ -78,12 +78,12 @@ template<typename samp_type> void record(
     boost::system_time last_update = start;
     unsigned long long last_update_samps = 0;
 
-    std::cout << "Set up timer" << std::endl;
+    //std::cout << "Set up timer" << std::endl;
 
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
 
-    std::cout << "About to start" << std::endl;
+    //std::cout << "About to start" << std::endl;
 
     while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)) {
         boost::system_time now = boost::get_system_time();
@@ -104,7 +104,7 @@ template<typename samp_type> void record(
                     "  This message will not appear again.\n"
                 );
             }
-            std::cerr << "V";
+            //std::cerr << "V";
             continue;
         }
         if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
@@ -148,7 +148,7 @@ template<typename samp_type> void record(
         }
     }
 
-    std::cout << "Done streaming" << std::endl;
+    //std::cout << "Done streaming" << std::endl;
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
@@ -156,7 +156,7 @@ template<typename samp_type> void record(
     if (outfile.is_open())
         outfile.close();
 
-    std::cout << "Closing" << std::endl;
+    //std::cout << "Closing" << std::endl;
 
     if (stats) {
         std::cout << std::endl;
@@ -360,7 +360,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::stream_args_t stream_args(format,wirefmt);
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
-    std::cout << "Created streamer" << std::endl;
+    //std::cout << "Created streamer" << std::endl;
 
     //record<samp_type>(rx_stream, file, samps_per_buff, num_requested_samples, time_requested, bw_summary, stats, null, enable_size_map, continue_on_bad_packet);
     
@@ -385,7 +385,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         boost::this_thread::sleep(boost::posix_time::seconds(setup_time)); //allow for some setup time
 
-        std::cout << "Setup time passed" << std::endl;
+        //std::cout << "Setup time passed" << std::endl;
 
         //check Ref and LO Lock detect
         if (not vm.count("skip-lo")){
@@ -396,11 +396,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 check_locked_sensor(usrp->get_mboard_sensor_names(0), "ref_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, 0), setup_time);
         }
 
-        std::cout << "Done checking Ref and LO Lock detect" << std::endl;
+        //std::cout << "Done checking Ref and LO Lock detect" << std::endl;
 
         if (total_num_samps == 0){
             std::signal(SIGINT, &sig_int_handler);
-            std::cout << "Signalled SIGINT" << std::endl;
+            //std::cout << "Signalled SIGINT" << std::endl;
         }
 
         //record for this frequency
@@ -408,6 +408,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         else if (type == "float") record<std::complex<float> >record_args(filename);
         else if (type == "short") record<std::complex<short> >record_args(filename);
         else throw std::runtime_error("Unknown type " + type);
+
+        std::cout << std::endl;
 
         //print progress
         std::cout << filename << std::endl;
