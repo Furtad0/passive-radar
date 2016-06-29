@@ -1,5 +1,14 @@
 #!/bin/bash
 
+usage="$(basename "$0") [-h] [-g gain] -n name
+
+Program to take samples between 72 and 400 MHz in steps of 4 MHz.
+
+where: 
+    -h|--help  show this help text
+    -g|--gain  set the gain of the receiver, defaults to 0
+    -n|--name  set the name of the folder and archive in which samples will be saved"
+
 while [[ $# -gt 0 ]] 
 do
 key="$1"
@@ -11,6 +20,10 @@ case $key in
     -g|--gain)
     GAIN="$2"
     shift
+    ;;
+    -h|--help)
+    echo "$usage"
+    exit
     ;;
   esac
   shift
@@ -27,16 +40,15 @@ GAIN=${GAIN:-0}
 mkdir ../samples/$NAME
 
 # cage elements
-FREQMHZ=72     # starting
-FREQMHZMAX=400 # ending
-FREQMHZSTEP=4  # step
+FREQMHZ=72      # starting
+FREQMHZMAX=400  # ending
+FREQMHZSTEP=4   # step
 
 ~/grc/applications/take_samples/build/take_samples --file ~/grc/samples/$NAME/ --gain $GAIN --start $FREQMHZ --end $FREQMHZMAX --step $FREQMHZSTEP
-
 #make archive and clean up
 ARCHIVENAME=""
 ARCHIVENAME+=$NAME
-ARCHIVENAME+="_cage.tar"
+ARCHIVENAME+="_cage.tar.xz"
 
 cd ~/grc/samples
 
@@ -44,5 +56,4 @@ tar -cf ~/$ARCHIVENAME $NAME/*
 rm -r ~/grc/samples/$NAME
 
 cd ~/grc/scripts
-
 
