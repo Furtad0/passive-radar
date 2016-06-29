@@ -40,7 +40,7 @@ END=${END:-100}
 mkdir ../samples/$NAME
 
 while [ $GAIN -lt $END ]; do
-    FILENAME="10#$GAIN"
+    FILENAME="$GAIN"
     FILENAME+=".dat"
     /usr/lib/uhd/examples/rx_samples_to_file --file ~/grc/samples/$NAME/$FILENAME --type float --duration 5 --freq $FREQ --gain $GAIN --ant "RX2" --subdev "A:A"
     let GAIN=$GAIN+$STEP
