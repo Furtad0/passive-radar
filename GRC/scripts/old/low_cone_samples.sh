@@ -2,7 +2,7 @@
 
 usage="$(basename "$0") [-h] [-g gain] -n name
 
-Program to take samples between 404 and 948 MHz in steps of 4 MHz.
+Program to take samples between 404 and 760 MHz in steps of 4 MHz.
 
 where: 
     -h|--help  show this help text
@@ -41,7 +41,7 @@ mkdir ../samples/$NAME
 
 # cage elements
 FREQMHZ=404     # starting
-FREQMHZMAX=948  # ending
+FREQMHZMAX=760  # ending
 FREQMHZSTEP=4   # step
 
 
