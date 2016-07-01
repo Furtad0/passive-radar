@@ -5,9 +5,9 @@ usage="$(basename "$0") [-h] [-g gain] -n name
 Program to take samples between 952 and 1500 MHz in steps of 4 MHz.
 
 where: 
-    -h|--help  show this help text
-    -g|--gain  set the gain of the receiver, defaults to 0
-    -n|--name  set the name of the folder and archive in which samples will be saved"
+    -h|--help       show this help text
+    -g|--gain (=40) set the gain of the receiver, defaults to 0
+    -n|--name       set the name of the folder and archive in which samples will be saved"
 
 while [[ $# -gt 0 ]] 
 do
@@ -35,7 +35,7 @@ if [ "$NAME" == "NA" ]; then
     exit 0
 fi
 
-GAIN=${GAIN:-0}
+GAIN=${GAIN:-40}
 
 mkdir ../samples/$NAME
 
