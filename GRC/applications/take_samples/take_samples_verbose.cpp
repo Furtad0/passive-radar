@@ -89,7 +89,7 @@ template<typename samp_type> void record(
         boost::system_time now = boost::get_system_time();
 
         size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
-        //std::cout << num_rx_samps << "  ";
+        std::cout << num_rx_samps << "  ";
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
