@@ -53,7 +53,7 @@ include_directories(
 link_directories(${Boost_LIBRARY_DIRS})
 
 ### Make the executable #######################################################
-add_executable(take_samples take_samples.cpp)
+add_executable(take_samples take_samples_circular.cpp)
 
 SET(CMAKE_BUILD_TYPE "Release")
 MESSAGE(STATUS "******************************************************************************")
