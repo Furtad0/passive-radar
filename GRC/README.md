@@ -2,7 +2,7 @@
 
 applications: C++ applications that may be compiled and run on a USRP device.  These use UHD.
 
-flowgraphs: GNURadio Companion flowgraphs.  I have not yet gotten Network Mode working with the USRP E312, and it doesn't have most utility, so most of these operate on .dat files.
+flowgraphs: GNURadio Companion flowgraphs.
 
 modules: C++ custom modules for GNURadio Companion.
 
