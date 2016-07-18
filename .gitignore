@@ -1,5 +1,5 @@
 #ignore compiled GRC flowgraphs
-GRC/flowgraphs/*.py
+#GRC/flowgraphs/*.py
 
 #ignore saved data
 GRC/samples
