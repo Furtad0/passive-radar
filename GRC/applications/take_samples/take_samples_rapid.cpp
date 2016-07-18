@@ -24,40 +24,56 @@
 #include <boost/format.hpp>
 #include <boost/thread.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/circular_buffer.hpp>
+#include <boost/thread.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/thread/thread.hpp> 
 #include <iostream>
 #include <fstream>
 #include <csignal>
 #include <complex>
+#include <signal.h>
+#include <deque>
 
 namespace po = boost::program_options;
 
 static bool stop_signal_called = false;
+static int samps_per_buff = 1000;
 void sig_int_handler(int){stop_signal_called = true;}
 
-template<typename samp_type> void record(
-    uhd::rx_streamer::sptr rx_stream,
-    const std::string &file,
-    size_t samps_per_buff,
+//function for receiving samples from usrp
+//samples are written to the interim storage buffs[][]
+//communicates with output via boolean flags
+//this function is permitted to write to r_ flags only
+template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
     unsigned long long num_requested_samples,
-    double time_requested = 0.0,
-    bool bw_summary = false,
-    bool stats = false,
-    bool null = false,
-    bool enable_size_map = false,
-    bool continue_on_bad_packet = false
-){
+    std::vector<int> * flags,
+    samp_type buffs[][1000], 
+    std::vector<size_t> * num_rx,
+    int multiplier,
+    std::vector<bool> * bools,
+    double time_requested = 0.0){
 
     uhd::rx_metadata_t md;
-    std::vector<samp_type> buff(samps_per_buff);
-    std::ofstream outfile;
 
-    if (not null)
-        outfile.open(file.c_str(), std::ofstream::binary);
-    bool overflow_message = false;//true;
+    //unpack pointers from vector
+    int * r_pointer = &((*flags).at(0));
+    int * o_pointer = &((*flags).at(1));
+    int * r_lap = &((*flags).at(2));
+    int * o_lap = &((*flags).at(3));
+    int * o_started = &((*flags).at(4));
+    int * r_done = &((*flags).at(5));
 
-    //std::cout << "Opened file" << std::endl;
-
+    //unpack input bools
+    bool bw_summary = (*bools).at(0);
+    bool stats = (*bools).at(1);
+    bool null = (*bools).at(2);
+    bool enable_size_map = (*bools).at(3);
+    bool continue_on_bad_packet = (*bools).at(4);
     
+    bool one_packet = true; //receive only one packet at a time-- may help prevent overflows?
+    bool overflow_message = true;
+
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
         uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
@@ -70,7 +86,11 @@ template<typename samp_type> void record(
 
     unsigned long long num_total_samps = 0;
 
-    //std::cout << "Set up streaming" << std::endl;
+    //wait for output to start, if necessary
+    while(*o_started == 0) {
+        boost::this_thread::sleep_for(boost::chrono::nanoseconds(100));
+        
+    }
 
     boost::system_time start = boost::get_system_time();
     unsigned long long ticks_requested = (long)(time_requested * (double)boost::posix_time::time_duration::ticks_per_second());
@@ -78,30 +98,29 @@ template<typename samp_type> void record(
     boost::system_time last_update = start;
     unsigned long long last_update_samps = 0;
 
-    //std::cout << "Set up timer" << std::endl;
-
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
 
-    //std::cout << "About to start" << std::endl;
-
+    //while receiving
     while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)) {
         boost::system_time now = boost::get_system_time();
-
-        size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
-        std::cout << num_rx_samps << "  ";
+        
+        //record samples
+        size_t num_rx_samps = rx_stream->recv(&buffs[*o_pointer][0], 1000, md, 3.0, (enable_size_map || one_packet));
+        (*num_rx).at(*r_pointer) = num_rx_samps;
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
             break;
         }
-        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
+        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW && !md.out_of_sequence){
             if (overflow_message) {
                 overflow_message = false;
                 std::cerr << boost::format(
-                    "Got an overflow indication.\n"
+                    "Overflow on the receiver side.\n"
                 );
             }
+            std::cerr << "V";
             
             continue;
         }
@@ -115,6 +134,7 @@ template<typename samp_type> void record(
                 throw std::runtime_error(error);
         }
 
+        //size map stats
         if (enable_size_map) {
             SizeMap::iterator it = mapSizes.find(num_rx_samps);
             if (it == mapSizes.end())
@@ -124,9 +144,7 @@ template<typename samp_type> void record(
 
         num_total_samps += num_rx_samps;
 
-        if (outfile.is_open())
-            outfile.write((const char*)&buff.front(), num_rx_samps*sizeof(samp_type));
-
+        //if user asked for summary outputs, give them
         if (bw_summary) {
             last_update_samps += num_rx_samps;
             boost::posix_time::time_duration update_diff = now - last_update;
@@ -144,18 +162,25 @@ template<typename samp_type> void record(
             if ((unsigned long long)ticks_diff.ticks() > ticks_requested)
                 break;
         }
+
+        //update counters
+        *r_pointer = (*r_pointer + 1) % multiplier;
+        if (*r_pointer == 0) {*r_lap += 1;}
+ 
+        //recognize overflow and stop streaming
+        if ((*r_lap > *o_lap) && (*r_pointer == *o_pointer)){ //if out of space / similar
+            std::cerr << "Overflow on the file writing side: " << *r_lap << " > " << *o_lap << std::endl;
+            break; //quit
+        }
     }
 
-    //std::cout << "Done streaming" << std::endl;
+    //set flag and end streaming
+    *r_done = 1;
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
-    if (outfile.is_open())
-        outfile.close();
-
-    //std::cout << "Closing" << std::endl;
-
+    //if necessary, print statistics
     if (stats) {
         std::cout << std::endl;
 
@@ -171,14 +196,73 @@ template<typename samp_type> void record(
                 std::cout << it->first << ":\t" << it->second << std::endl;
         }
     }
+
 }
 
-template<typename samp_type> void recv_to_file(
-    uhd::usrp::multi_usrp::sptr usrp,
-    const std::string &cpu_format,
-    const std::string &wire_format,
+//function for writing samples to file
+//samples are read from the interim storage buffs[][]
+//communicates with receive via boolean flags
+//this function is permitted to write to o_ flags only
+template<typename samp_type> void output(const std::string &file,
+            std::vector<int> * flags,
+            samp_type buffs[][1000], std::vector<size_t> * num_rx,
+            int multiplier){
+    //get ready to write
+    std::ofstream outfile;
+    outfile.open(file.c_str(), std::ofstream::binary);
+
+    //unpack pointers from vector
+    int * r_pointer = &((*flags).at(0));
+    int * o_pointer = &((*flags).at(1));
+    int * r_lap = &((*flags).at(2));
+    int * o_lap = &((*flags).at(3));
+    int * o_started = &((*flags).at(4));
+    int * r_done = &((*flags).at(5));
+
+    //signal variables
+    bool writing = true;
+    *o_started = 1;
+
+    //until receiver has signalled that it's done and lap and pointer markers are consistent
+    while(writing){
+        //if receiver is done and fully caught up
+        if ((*r_done == 1) && (*r_lap == *o_lap) && (*r_pointer == *o_pointer)){
+            writing = false; //leave
+            continue;
+        }
+        if ((*r_lap == *o_lap) && (*r_pointer == *o_pointer)){ //if fully caught up to the receiver
+            boost::this_thread::sleep_for(boost::chrono::nanoseconds(100));
+            continue; //don't do anything for now
+        }
+        if ((*r_lap > *o_lap) && (*r_pointer == *o_pointer)){ //if out of space / similar
+            std::cerr << "Overflow on the file writing side: " << *r_lap << " > " << *o_lap << std::endl;
+            break; //quit
+        }
+        
+        //how many samples should be written?
+        size_t num_rx_samps = (*num_rx).at(*o_pointer);
+
+        //write samples to output file
+        if (outfile.is_open())
+            outfile.write((const char*)&buffs[*o_pointer][0], num_rx_samps*sizeof(samp_type));
+        
+        //update pointers
+        *o_pointer = (*o_pointer + 1) % multiplier;
+        if (*o_pointer == 0) {*o_lap += 1;}
+
+    }
+
+    
+    
+
+    if (outfile.is_open())
+        outfile.close();
+}
+
+template<typename samp_type> void record(
+    uhd::rx_streamer::sptr rx_stream,
     const std::string &file,
-    size_t samps_per_buff,
+//    size_t samps_per_buff,
     unsigned long long num_requested_samples,
     double time_requested = 0.0,
     bool bw_summary = false,
@@ -188,11 +272,64 @@ template<typename samp_type> void recv_to_file(
     bool continue_on_bad_packet = false
 ){
 
-    std::cout << "Entered recv_to_file" << std::endl;
-
-
     
+    //int channels = 10;
+    //int curr_channel = 0;
+    //std::vector<std::vector<samp_type>> buffs(channels, std::vector<samp_type>(samps_per_buff));
+    
+    int multiplier = 1000;
+    
+    //storing buffers of data
+    samp_type buffs [multiplier][1000] = {};
+    //storing numbers of received samples
+    std::vector<size_t> num_rx(multiplier);
+    
+    //effectively atomic.
+    // r_ variables are written only by r_thread, o_ variables are written only by o_thread
+    int r_pointer = 0; //current value [0,multiplier) that will be filled next
+    int o_pointer = 0; //current value [0,multiplier) that will be output and cleared next
+    int r_lap = 0; //+= 1 when r_pointer passes end of buffs
+    int o_lap = 0; //+= 1 when o_pointer passes end of buffs
+    int o_started = 0; //becomes 1 when o_thread has begun looping
+    int r_done = 0; //becomes 1 when the r_thread is about to terminate.
+
+    //because thread takes a fixed number of arguments, stick variables in a vector
+    std::vector<int> flags(6);
+    flags.at(0) = r_pointer;
+    flags.at(1) = o_pointer;
+    flags.at(2) = r_lap;
+    flags.at(3) = o_lap;
+    flags.at(4) = o_started;
+    flags.at(5) = r_done;
+
+    //also other information to be passed
+    std::vector<bool> bools(5);
+    bools.at(0) = bw_summary;
+    bools.at(1) = stats;
+    bools.at(2) = null;
+    bools.at(3) = enable_size_map;
+    bools.at(4) = continue_on_bad_packet;
+
+
+    //threads
+    boost::thread r_thread = boost::thread(receive<samp_type>, rx_stream, //samps_per_buff, 
+        num_requested_samples,
+        &flags, buffs, &num_rx, multiplier, &bools, time_requested);
+    
+    //start the relevant thread
+    if (not null){
+        boost::thread o_thread = boost::thread(output<samp_type>, file, //samps_per_buff,
+            &flags, buffs, &num_rx, multiplier);
+        o_thread.join();
+    }
+    else {
+        r_thread.join();
+    }
+
+
+
 }
+
 
 typedef boost::function<uhd::sensor_value_t (const std::string&)> get_sensor_fn_t;
 
@@ -240,10 +377,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
     std::string args, type, ant, subdev, ref, wirefmt, filebase;
-    size_t total_num_samps, spb;
+    size_t total_num_samps;
+//    int spb;
     double rate, start, end, step, gain, bw_mhz, setup_time, total_time;
     double freq; //current frequency
     std::string filename;
+    
+    total_num_samps = 0;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -251,10 +391,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
         ("file", po::value<std::string>(&filebase)->default_value("samples"), "base file location")
-        ("type", po::value<std::string>(&type)->default_value("float"), "sample type: double, float, or short")
-        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
+        ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
+//        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
         ("duration", po::value<double>(&total_time)->default_value(0.1), "total number of seconds to receive")
-        ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
+//        ("spb", po::value<int>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<double>(&rate)->default_value(16e6), "rate of incoming samples")
         ("start", po::value<double>(&start)->default_value(72.0), "RF start frequency in MHz")
         ("end", po::value<double>(&end)->default_value(400.0), "RF end frequency in MHz")
@@ -361,17 +501,28 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //std::cout << "Created streamer" << std::endl;
 
     //record<samp_type>(rx_stream, file, samps_per_buff, num_requested_samples, time_requested, bw_summary, stats, null, enable_size_map, continue_on_bad_packet);
+
+    //samps_per_buff = (rx_stream->get_max_num_samps())*2;
+    std::cout << "Samples per Buffer:" << (samps_per_buff) << std::endl;
+
+    //std::signal(SIGINT, &sig_int_handler);
+    struct sigaction action;
+    action.sa_handler = sig_int_handler;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    
+    sigaction(SIGINT, NULL, &action);
+
+    std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
     
     //argument macros
-    #define recv_to_file_args(format, file) \
-            (usrp, format, wirefmt, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet)
     #define record_args(file) \
-            (rx_stream, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet)
+            (rx_stream, file, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet)
 
     //for every requested frequency
     while (freq <= end*1e6) {
         //set variables
-        filename = filebase + "" + boost::lexical_cast<std::string>(freq/1e6) + "mhz_" + boost::lexical_cast<std::string>(rate_ms) + "MS.dat";
+        filename = filebase + "" + boost::lexical_cast<std::string>(int(freq/1e6)) + "mhz_" + boost::lexical_cast<std::string>(int(rate_ms)) + "MS.dat";
 
 
         //set the current frequency
@@ -395,11 +546,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
 
         //std::cout << "Done checking Ref and LO Lock detect" << std::endl;
-
-        if (total_num_samps == 0){
-            std::signal(SIGINT, &sig_int_handler);
-            //std::cout << "Signalled SIGINT" << std::endl;
-        }
 
         //record for this frequency
         if (type == "double") record<std::complex<double> >record_args(filename);

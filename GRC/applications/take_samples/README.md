@@ -7,9 +7,7 @@ Each of these applications steps from a start frequency to an end frequency at a
 
 take_samples.cpp can record samples at 4MS/s reliably without overflow.
 
-take_samples_verbose.cpp is a version of take_samples.cpp that prints information about overflows.
-
-take_samples_circular.cpp is an in-progress application that will be able to record at higher sampling rates for a finite amount of time by storing data in active memory, then copying it to the SD card.
+take_samples_rapid.cpp can record at higher sampling rates for a finite amount of time by storing data in active memory, then copying it to the SD card.  It can record approximately 2 seconds of data at 16 MS/s without overflow.
 
 Use --help for more detailed information.
 Notably, the --file flag should be used to set the file location as well
