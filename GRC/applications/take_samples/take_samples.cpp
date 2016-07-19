@@ -55,9 +55,6 @@ template<typename samp_type> void record(
         outfile.open(file.c_str(), std::ofstream::binary);
     bool overflow_message = false;//true;
 
-    //std::cout << "Opened file" << std::endl;
-
-    
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
         uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
@@ -70,26 +67,19 @@ template<typename samp_type> void record(
 
     unsigned long long num_total_samps = 0;
 
-    //std::cout << "Set up streaming" << std::endl;
-
     boost::system_time start = boost::get_system_time();
     unsigned long long ticks_requested = (long)(time_requested * (double)boost::posix_time::time_duration::ticks_per_second());
     boost::posix_time::time_duration ticks_diff;
     boost::system_time last_update = start;
     unsigned long long last_update_samps = 0;
 
-    //std::cout << "Set up timer" << std::endl;
-
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
-
-    //std::cout << "About to start" << std::endl;
 
     while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)) {
         boost::system_time now = boost::get_system_time();
 
         size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
-        //std::cout << num_rx_samps << "  ";
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
@@ -146,15 +136,19 @@ template<typename samp_type> void record(
         }
     }
 
-    //std::cout << "Done streaming" << std::endl;
-
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
     if (outfile.is_open())
         outfile.close();
 
-    //std::cout << "Closing" << std::endl;
+
+    //clear and throw away remaining stream buffer so that the next frequency file doesn't contain these samples
+    int buffer_size = rx_stream->get_max_num_samps();
+    samp_type garbage[buffer_size] = {};
+    while(md.error_code != uhd::rx_metadata_t::ERROR_CODE_TIMEOUT){
+        rx_stream->recv(&garbage[0], buffer_size, md, 0.1, true);
+    }
 
     if (stats) {
         std::cout << std::endl;

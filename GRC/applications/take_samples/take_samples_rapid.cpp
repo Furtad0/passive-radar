@@ -38,7 +38,7 @@
 namespace po = boost::program_options;
 
 static bool stop_signal_called = false;
-static int samps_per_buff = 1000;
+static int samps_per_buff = 1016;
 void sig_int_handler(int){stop_signal_called = true;}
 
 //function for receiving samples from usrp
@@ -48,8 +48,8 @@ void sig_int_handler(int){stop_signal_called = true;}
 template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
     unsigned long long num_requested_samples,
     std::vector<int> * flags,
-    samp_type buffs[][1000], 
-    std::vector<size_t> * num_rx,
+    samp_type buffs[][1016], 
+    size_t num_rx[],
     int multiplier,
     std::vector<bool> * bools,
     double time_requested = 0.0){
@@ -106,8 +106,8 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
         boost::system_time now = boost::get_system_time();
         
         //record samples
-        size_t num_rx_samps = rx_stream->recv(&buffs[*o_pointer][0], 1000, md, 3.0, (enable_size_map || one_packet));
-        (*num_rx).at(*r_pointer) = num_rx_samps;
+        size_t num_rx_samps = rx_stream->recv(&buffs[*r_pointer][0], 1016, md, 3.0, (enable_size_map || one_packet));
+        num_rx[*r_pointer] = num_rx_samps;
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
@@ -180,6 +180,12 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
+    //clear and throw away remaining stream buffer so that the next frequency file doesn't contain these samples
+    samp_type garbage[1016] = {};
+    while(md.error_code != uhd::rx_metadata_t::ERROR_CODE_TIMEOUT){
+        rx_stream->recv(&garbage[0], 1016, md, 0.1, true);
+    }
+
     //if necessary, print statistics
     if (stats) {
         std::cout << std::endl;
@@ -205,7 +211,8 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
 //this function is permitted to write to o_ flags only
 template<typename samp_type> void output(const std::string &file,
             std::vector<int> * flags,
-            samp_type buffs[][1000], std::vector<size_t> * num_rx,
+            samp_type buffs[][1016], 
+            size_t num_rx[],
             int multiplier){
     //get ready to write
     std::ofstream outfile;
@@ -240,7 +247,7 @@ template<typename samp_type> void output(const std::string &file,
         }
         
         //how many samples should be written?
-        size_t num_rx_samps = (*num_rx).at(*o_pointer);
+        size_t num_rx_samps = num_rx[*o_pointer];
 
         //write samples to output file
         if (outfile.is_open())
@@ -272,17 +279,12 @@ template<typename samp_type> void record(
     bool continue_on_bad_packet = false
 ){
 
-    
-    //int channels = 10;
-    //int curr_channel = 0;
-    //std::vector<std::vector<samp_type>> buffs(channels, std::vector<samp_type>(samps_per_buff));
-    
-    int multiplier = 1000;
+    int multiplier = 950;
     
     //storing buffers of data
-    samp_type buffs [multiplier][1000] = {};
+    samp_type buffs [multiplier][1016] = {};
     //storing numbers of received samples
-    std::vector<size_t> num_rx(multiplier);
+    size_t num_rx[multiplier] = {};
     
     //effectively atomic.
     // r_ variables are written only by r_thread, o_ variables are written only by o_thread
@@ -314,19 +316,17 @@ template<typename samp_type> void record(
     //threads
     boost::thread r_thread = boost::thread(receive<samp_type>, rx_stream, //samps_per_buff, 
         num_requested_samples,
-        &flags, buffs, &num_rx, multiplier, &bools, time_requested);
+        &flags, buffs, num_rx, multiplier, &bools, time_requested);
     
     //start the relevant thread
     if (not null){
         boost::thread o_thread = boost::thread(output<samp_type>, file, //samps_per_buff,
-            &flags, buffs, &num_rx, multiplier);
+            &flags, buffs, num_rx, multiplier);
         o_thread.join();
     }
     else {
         r_thread.join();
     }
-
-
 
 }
 
@@ -497,8 +497,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //create a receive streamer
     uhd::stream_args_t stream_args(format,wirefmt);
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-
-    //std::cout << "Created streamer" << std::endl;
 
     //record<samp_type>(rx_stream, file, samps_per_buff, num_requested_samples, time_requested, bw_summary, stats, null, enable_size_map, continue_on_bad_packet);
 
