@@ -58,9 +58,9 @@ FREQMHZSTEP=4   # step
 
 ~/grc/applications/take_samples/build/take_samples --file ~/grc/samples/$NAME/ --gain $GAIN --start $FREQMHZ --end $FREQMHZMAX --step $FREQMHZSTEP --rate $RATE --duration $DUR
 #make archive and clean up
-ARCHIVENAME=""
+ARCHIVENAME="low_cone_"
 ARCHIVENAME+=$NAME
-ARCHIVENAME+="_low_cone.tar.xz"
+ARCHIVENAME+=".tar.xz"
 
 cd ~/grc/samples
 

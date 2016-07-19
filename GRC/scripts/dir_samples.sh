@@ -2,7 +2,7 @@
 
 usage="$(basename "$0") [-h] [-g gain] -n name
 
-Program to take samples between 72 and 400 MHz in steps of 4 MHz.
+Program to take samples between 200 and 600 MHz in steps of 4 MHz.
 
 where: 
     -h|--help              show this help text
@@ -52,13 +52,13 @@ DUR=${DUR:-0.1}
 mkdir ../samples/$NAME
 
 # cage elements
-FREQMHZ=72      # starting
-FREQMHZMAX=400  # ending     400
+FREQMHZ=200     # starting
+FREQMHZMAX=600  # ending     400
 FREQMHZSTEP=4   # step
 
 ~/grc/applications/take_samples/build/take_samples --file ~/grc/samples/$NAME/ --gain $GAIN --start $FREQMHZ --end $FREQMHZMAX --step $FREQMHZSTEP --rate $RATE --duration $DUR
 #make archive and clean up
-ARCHIVENAME="cage_"
+ARCHIVENAME="dir_"
 ARCHIVENAME+=$NAME
 ARCHIVENAME+=".tar.xz"
 
