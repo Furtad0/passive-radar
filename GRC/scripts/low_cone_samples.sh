@@ -8,7 +8,7 @@ where:
     -h|--help              show this help text
     -g|--gain     (=30)    set the gain of the receiver
     -r|--rate     (=16e6)  set the sampling rate of the receiver
-    -d|--duration (=0.2)   set the duration (seconds) during which to take samples
+    -d|--duration (=0.1)   set the duration (seconds) during which to take samples
     -n|--name              set the name of the folder and archive in which samples will be saved"
 
 while [[ $# -gt 0 ]] 
