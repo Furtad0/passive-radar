@@ -2,11 +2,11 @@
 
 usage="$(basename "$0") [-h] [-g gain] -n name
 
-Program to take samples between 72 and 400 MHz in steps of 4 MHz.
+Program to take samples between 404 and 948 MHz in steps of 4 MHz.
 
 where: 
     -h|--help              show this help text
-    -g|--gain     (=40)    set the gain of the receiver
+    -g|--gain     (=30)    set the gain of the receiver
     -r|--rate     (=16e6)  set the sampling rate of the receiver
     -d|--duration (=0.2)   set the duration (seconds) during which to take samples
     -n|--name              set the name of the folder and archive in which samples will be saved"
@@ -45,7 +45,7 @@ if [ "$NAME" == "NA" ]; then
     exit 0
 fi
 
-GAIN=${GAIN:-40}
+GAIN=${GAIN:-30}
 RATE=${RATE:-16000000}
 DUR=${DUR:-0.1}
 
