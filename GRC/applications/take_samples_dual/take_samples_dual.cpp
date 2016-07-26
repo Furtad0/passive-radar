@@ -187,9 +187,15 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
     rx_stream->issue_stream_cmd(stream_cmd);
 
     //clear and throw away remaining stream buffer so that the next frequency file doesn't contain these samples
-    samp_type garbage[1016] = {};
+    samp_type garbage0[1016] = {};
+    samp_type garbage1[1016] = {};
+    samp_type * ptr0 = &garbage0[0];
+    samp_type * ptr1 = &garbage1[0];
+    std::vector<samp_type*> garbage;
+    garbage.push_back(garbage0);
+    garbage.push_back(garbage1);
     while(md.error_code != uhd::rx_metadata_t::ERROR_CODE_TIMEOUT){
-        rx_stream->recv(&garbage[0], 1016, md, 0.1, true);
+        rx_stream->recv(garbage, 1016, md, 0.1, true);
     }
 
     //if necessary, print statistics
@@ -325,8 +331,8 @@ template<typename samp_type> void record(
     bools.at(4) = continue_on_bad_packet;
 
     //file names
-    std::string file0 = file + "_0";
-    std::string file1 = file + "_1";
+    std::string file0 = "0_" + file;
+    std::string file1 = "1_" + file;
 
 
     //threads
@@ -410,7 +416,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("step", po::value<double>(&step)->default_value(4.0), "RF step frequency in MHz")
         ("gain", po::value<double>(&gain)->default_value(0.0), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant)->default_value("RX2"), "antenna selection")
-        ("subdev", po::value<std::string>(&subdev)->default_value("A:A A:B"), "subdevice specification")
+        ("subdev", po::value<std::string>(&subdev)->default_value("A:A A:B"), "subdevice specification") //A:A A:B
         ("bw", po::value<double>(&bw_mhz)->default_value(8.0), "analog frontend filter bandwidth in MHz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8 or sc16)")
@@ -456,12 +462,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //Lock mboard clocks
-    usrp->set_clock_source(ref);
+    //usrp->set_clock_source(ref);  //TAGUSRP
 
     //always select the subdevice first, the channel mapping affects the other settings
     if (vm.count("subdev")) usrp->set_rx_subdev_spec(subdev);
-
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //set the sample rate
     if (rate <= 0.0){
@@ -473,7 +477,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate()/1e6) << std::endl << std::endl;
 
     //set time to 0
-    usrp->set_time_now(uhd::time_spec_t(0.0));
+    usrp->set_time_now(uhd::time_spec_t(0.0), 0);
     
     //set the rf gain
     if (vm.count("gain")) {
@@ -499,6 +503,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<size_t> channel_nums;
     channel_nums.push_back(0);
     channel_nums.push_back(1);
+
+    //std::cout << usrp->get_rx_num_channels() << " >= 2 ?" << std::endl;
     /*boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
     for(size_t ch = 0; ch < channel_strings.size(); ch++){
         size_t chan = boost::lexical_cast<int>(channel_strings[ch]);
@@ -524,11 +530,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     else throw std::runtime_error("Unknown type " + type);
 
     //create a receive streamer
-    uhd::stream_args_t stream_args(format,wirefmt);
+    uhd::stream_args_t stream_args(format);//,wirefmt);
     stream_args.channels = channel_nums;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     //record<samp_type>(rx_stream, file, samps_per_buff, num_requested_samples, time_requested, bw_summary, stats, null, enable_size_map, continue_on_bad_packet);
+
+
+
+    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //samps_per_buff = (rx_stream->get_max_num_samps())*2;
     std::cout << "Samples per Buffer:" << (samps_per_buff) << std::endl;
