@@ -75,11 +75,11 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
 
     //wait for output to start, if necessary
     while(*o_started == 0) {
-        boost::this_thread::sleep_for(boost::chrono::nanoseconds(100));
+        boost::this_thread::sleep_for(boost::chrono::nanoseconds(10));
         
     }
 
-    std::cout << "receive: about to start streaming" << std::endl;
+    //std::cout << "receive: about to start streaming" << std::endl;
 
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
@@ -101,9 +101,14 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
 
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
+    
+    //print decimator
+    int a = -1;
+    bool overflow = false;
 
     //while receiving
     while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)) {
+
         boost::system_time now = boost::get_system_time();
         
         //record samples
@@ -122,7 +127,7 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
                 );
             }
             std::cerr << "V";
-            
+            overflow = true;
             break; //when overflow occurs, quit taking samples.
         }
         if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
@@ -170,7 +175,10 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
  
         //recognize overflow and stop streaming
         if ((*r_lap > *o_lap) && (*r_pointer == *o_pointer)){ //if out of space / similar
-            std::cerr << "Overflow on the file writing side: " << *r_lap << " > " << *o_lap << std::endl;
+            if (a == -1){std::cerr << "Overflow on the file writing side: " << *r_lap << " > " << *o_lap  << " at " << *r_pointer << std::endl;}
+            //if (a == 0) {std::cout << "A";}
+            //a = (a + 1) % 100;
+            overflow = true;
             break; //quit
         }
     }
@@ -185,6 +193,12 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
     samp_type garbage[1016] = {};
     while(md.error_code != uhd::rx_metadata_t::ERROR_CODE_TIMEOUT){
         rx_stream->recv(&garbage[0], 1016, md, 0.1, true);
+    }
+
+    if (overflow) {
+        //if recording was stopped early
+        std::cout << "Stopped recording, waiting 5 seconds..." << std::endl;
+        boost::this_thread::sleep_for(boost::chrono::seconds(5));
     }
 
     //if necessary, print statistics
@@ -231,6 +245,9 @@ template<typename samp_type> void output(const std::string &file,
     bool writing = true;
 
     //until receiver has signalled that it's done and lap and pointer markers are consistent
+    int b = 0;
+    int o = 0;
+    *o_started = 1;
     while(writing){
         //if receiver is done and fully caught up
         if ((*r_done == 1) && (*r_lap == *o_lap) && (*r_pointer == *o_pointer)){
@@ -238,12 +255,15 @@ template<typename samp_type> void output(const std::string &file,
             continue;
         }
         if ((*r_lap == *o_lap) && (*r_pointer == *o_pointer)){ //if fully caught up to the receiver
-            *o_started = 1;
-            boost::this_thread::sleep_for(boost::chrono::nanoseconds(100));
+            
+            boost::this_thread::sleep_for(boost::chrono::nanoseconds(10));
+            if (b==0){std::cout << "B";}
+            b = (b+1) % 100;
             continue; //don't do anything for now
         }
         
-        
+        if (o == 0){std::cout << "o: " << *o_pointer << "   r: " << *r_pointer << std::endl;}
+        o = (o + 1) % 100;
 
         //how many samples should be written?
         size_t num_rx_samps = num_rx[*o_pointer];
@@ -279,14 +299,6 @@ template<typename samp_type> void record(
     bool continue_on_bad_packet = false
 ){
 
-/*    int multiplier = 950;
-    
-    //storing buffers of data
-    samp_type buffs [multiplier][1016] = {};
-    //storing numbers of received samples
-    size_t num_rx[multiplier] = {};
-*/
-
     //effectively atomic.
     // r_ variables are written only by r_thread, o_ variables are written only by o_thread
     int r_pointer = 0; //current value [0,multiplier) that will be filled next
@@ -298,13 +310,6 @@ template<typename samp_type> void record(
 
     //because thread takes a fixed number of arguments, stick variables in a vector
     int flags[6] = {r_pointer, o_pointer, r_lap, o_lap, o_started, r_done};
-    /*std::vector<int> flags(6);
-    flags.at(0) = r_pointer;
-    flags.at(1) = o_pointer;
-    flags.at(2) = r_lap;
-    flags.at(3) = o_lap;
-    flags.at(4) = o_started;
-    flags.at(5) = r_done;*/
 
     //also other information to be passed
     std::vector<bool> bools(4);
@@ -320,10 +325,10 @@ template<typename samp_type> void record(
         flags, buffs, num_rx, multiplier);
 
     //wait for output to start, if necessary
-    while(flags[4] == 0) { //o_started == 0
-        boost::this_thread::sleep_for(boost::chrono::nanoseconds(100));
+/*    while(flags[4] == 0) { //o_started == 0
+        boost::this_thread::sleep_for(boost::chrono::nanoseconds(10));
         
-    }
+    }*/
 
     boost::thread r_thread = boost::thread(receive<samp_type>, rx_stream,
         num_requested_samples,
