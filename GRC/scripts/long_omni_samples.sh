@@ -2,8 +2,8 @@
 
 usage="$(basename "$0") [-h] [-g gain] -n name
 
-Program to take samples between 70 and 370 MHz in increments of 100 MHz using the omnidirectional antenna.
-Updated 26 Jul 2016.
+Program to take samples between 50 and 350 MHz in increments of 100 MHz using the omnidirectional antenna.
+Updated 28 Jul 2016.
 
 where: 
     -h|--help              show this help text
@@ -55,8 +55,8 @@ DUR=${DUR:-0.6}
 mkdir ../samples/$NAME
 
 # cage elements
-FREQMHZ=70      # starting
-FREQMHZMAX=370  # ending     400
+FREQMHZ=50      # starting
+FREQMHZMAX=350  # ending     400
 FREQMHZSTEP=100 # step
 
 ~/grc/applications/take_samples/build/take_samples --file ~/grc/samples/$NAME/ --gain $GAIN --start $FREQMHZ --end $FREQMHZMAX --step $FREQMHZSTEP --rate $RATE --duration $DUR

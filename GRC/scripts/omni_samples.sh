@@ -2,8 +2,8 @@
 
 usage="$(basename "$0") [-h] [-g gain] -n name
 
-Program to take samples between 70 and 390 MHz in increments of 20 MHz using the omnidirectional antenna.
-Updated 26 Jul 2016.
+Program to take samples between 50 and 390 MHz in increments of 20 MHz using the omnidirectional antenna.
+Updated 28 Jul 2016.
 
 where: 
     -h|--help              show this help text
@@ -55,7 +55,7 @@ DUR=${DUR:-0.2}
 mkdir ../samples/$NAME
 
 # cage elements
-FREQMHZ=70      # starting
+FREQMHZ=50      # starting
 FREQMHZMAX=390  # ending     400
 FREQMHZSTEP=20  # step
 
