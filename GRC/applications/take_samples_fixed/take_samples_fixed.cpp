@@ -72,7 +72,7 @@ template<typename samp_type> void receive(uhd::rx_streamer::sptr rx_stream,
     
     bool one_packet = true; //receive only one packet at a time-- may help prevent overflows?
     bool overflow_message = true;
-
+    
     long hang_counter = 0;
     //wait for output to start, if necessary
     while(*o_started == 0 && hang_counter < 10000000 && !stop_signal_called) {
@@ -390,7 +390,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //variables to be set by po
     std::string args, type, ant, subdev, ref, wirefmt, filebase;
     size_t total_num_samps;
-    double rate, start, end, step, gain, bw_mhz, setup_time, total_time;
+//    int spb;
+    double rate, startfreq, gain, bw_mhz, setup_time, total_time;
+    int nfiles; //number of files to save
     double freq; //current frequency
     std::string filename;
     
@@ -403,11 +405,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
         ("file", po::value<std::string>(&filebase)->default_value("samples"), "base file location")
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
-        ("duration", po::value<double>(&total_time)->default_value(0.1), "total number of seconds to receive")
+        ("duration", po::value<double>(&total_time)->default_value(0.1), "number of seconds to receive per file")
         ("rate", po::value<double>(&rate)->default_value(16e6), "rate of incoming samples")
-        ("start", po::value<double>(&start)->default_value(72.0), "RF start frequency in MHz")
-        ("end", po::value<double>(&end)->default_value(400.0), "RF end frequency in MHz")
-        ("step", po::value<double>(&step)->default_value(4.0), "RF step frequency in MHz")
+        ("nfiles", po::value<int>(&nfiles)->default_value(100), "number of files to record")
+        ("freq", po::value<double>(&startfreq)->default_value(150), "RF frequency at which to take samples in MHz")
         ("gain", po::value<double>(&gain)->default_value(0.0), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant)->default_value("RX2"), "antenna selection")
         ("subdev", po::value<std::string>(&subdev)->default_value("A:A"), "subdevice specification")
@@ -483,17 +484,25 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (usrp->get_rx_bandwidth()/1e6) << std::endl << std::endl;
     }
 
+    //set frequency
+    freq = startfreq*1e6;
+    double rate_ms = usrp->get_rx_rate()/1e6;
+
+    //set the rf frequency
+    std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+    uhd::tune_request_t tune_request(freq);
+    if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
+    usrp->set_rx_freq(tune_request);
+    std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq()/1e6) << std::endl << std::endl;
+
 
     //set the antenna
     if (vm.count("ant")) usrp->set_rx_antenna(ant);
 
 
-//start of receiving data
-    freq = start*1e6;
-    double rate_ms = usrp->get_rx_rate()/1e6;
 
     
-        
+    
     //format
     std::string format;
     if (type == "double") format = "fc64";
@@ -507,6 +516,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //samps_per_buff = (rx_stream->get_max_num_samps())*2;
     std::cout << "Samples per Buffer:" << (samps_per_buff) << std::endl;
+
+    //check Ref and LO Lock detect
+    if (not vm.count("skip-lo")){
+        check_locked_sensor(usrp->get_rx_sensor_names(0), "lo_locked", boost::bind(&uhd::usrp::multi_usrp::get_rx_sensor, usrp, _1, 0), setup_time);
+        if (ref == "mimo")
+            check_locked_sensor(usrp->get_mboard_sensor_names(0), "mimo_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, 0), setup_time);
+        if (ref == "external")
+            check_locked_sensor(usrp->get_mboard_sensor_names(0), "ref_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, 0), setup_time);
+    }
 
     //std::signal(SIGINT, &sig_int_handler);
     struct sigaction action;
@@ -527,36 +545,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     #define record_args(file, buffs) \
             (multiplier, buffs, num_rx, rx_stream, file, total_num_samps, total_time, bw_summary, stats, enable_size_map, continue_on_bad_packet)
 
-    //for every requested frequency
-    while (freq <= end*1e6) {
+    //for every requested file
+    for (int i = 0; i < nfiles; i++) {
         //set variables
-        filename = filebase + "" + boost::lexical_cast<std::string>(int(freq/1e6)) + "mhz_" + boost::lexical_cast<std::string>(int(rate_ms)) + "MS.dat";
+        filename = filebase + "" + boost::lexical_cast<std::string>(int(freq/1e6)) + "mhz_" + boost::lexical_cast<std::string>(int(rate_ms)) + "MS_" + boost::lexical_cast<std::string>(i) + ".dat";
 
         //print progress
         std::cout << filename << std::endl;
 
-
-        //set the current frequency
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(freq);
-        if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
-        usrp->set_rx_freq(tune_request);
-        std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq()/1e6) << std::endl << std::endl;
-
         boost::this_thread::sleep(boost::posix_time::seconds(setup_time)); //allow for some setup time
 
-
-        //check Ref and LO Lock detect
-        if (not vm.count("skip-lo")){
-            check_locked_sensor(usrp->get_rx_sensor_names(0), "lo_locked", boost::bind(&uhd::usrp::multi_usrp::get_rx_sensor, usrp, _1, 0), setup_time);
-            if (ref == "mimo")
-                check_locked_sensor(usrp->get_mboard_sensor_names(0), "mimo_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, 0), setup_time);
-            if (ref == "external")
-                check_locked_sensor(usrp->get_mboard_sensor_names(0), "ref_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, 0), setup_time);
-        }
-
-
-        //record for this frequency
+        //record
         if (type == "double") { 
             std::complex<double> buffs [multiplier][1016] = {};
             record<std::complex<double> >record_args(filename, buffs);
@@ -572,9 +571,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         else throw std::runtime_error("Unknown type " + type);
 
         std::cout << std::endl;
+
         
-        //increment
-        freq = freq + step*1e6;
+        
     }
 
 
