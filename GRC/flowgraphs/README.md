@@ -4,9 +4,9 @@ Autocorrelation.grc - A first attempt at writing a custom module for on-the-fly 
 
 FM_receiver.grc - A utility program for converting .dat files at a FM radio frequency to .wav files or audio output.  This is used primarily as verification that a sample-taking system is functional.
     
-    --FM_receiver_float.py - Compiled version of FM_receiver.py that takes the name of the .dat file, packaged as complex floats, to be converted as an argument.
+--FM_receiver_float.py - Compiled version of FM_receiver.py that takes the name of the .dat file, packaged as complex floats, to be converted as an argument.
     
-    --FM_receiver_short.py - (...) complex shorts (...)
+--FM_receiver_short.py - (...) complex shorts (...)
 
 wav_player.grc - A utility program for playing .wav files as audio output; made because the LiveUSB GNURadio environment didn't have a ready way to play .wav files.
 
