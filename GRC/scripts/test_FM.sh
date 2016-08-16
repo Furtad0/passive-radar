@@ -2,7 +2,7 @@
 
 usage="$(basename "$0") [-h] [-f freq] [-g gain] [-r rate] [-d duration]
 
-Program to take samples at the frequency of an FM station and then decode the resulting data into a .wav audio file.
+Program to take samples at the frequency of an FM station and then decode the resulting data into a .wav audio file in the ~/ directory.
 
 where: 
     -h|--help             show this help text
